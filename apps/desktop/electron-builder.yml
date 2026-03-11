@@ -1,0 +1,21 @@
+appId: com.energy.desktop
+productName: Energy Desktop
+
+directories:
+  output: dist
+  buildResources: resources
+
+files:
+  - dist/**
+  - dist-electron/**
+
+win:
+  target: nsis
+  icon: resources/icons/app.ico
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true

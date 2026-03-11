@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+apps/desktop/dist/
+apps/desktop/dist-electron/
+
+# Temporary test/runtime directories
+.tmp-real-flow/
+.tmp-test/
+
+# Logs
+*.log
+logs/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+
+# Environment overrides
+.env
+.env.*
+!.env.example
+
+# TypeScript/Vite cache
+*.tsbuildinfo
+.vite/
+
+# Coverage
+coverage/
+
+# Local databases and app runtime state
+*.db
+*.db-shm
+*.db-wal
+
+# Packaged Electron artifacts
+*.blockmap
+*.exe
+
