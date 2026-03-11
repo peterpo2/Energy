@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAppState } from "../app/store";
 import { TOPBAR_RUN_EVENT } from "../app/events";
 import { bgText } from "../app/i18n/bg";
+import { DateRangePicker } from "../components/common/DateRangePicker";
 
 function formatDateTime(value: number | null): string {
   return value ? new Date(value).toLocaleString("bg-BG") : bgText.analysis.noSummaryRange;
@@ -46,6 +47,41 @@ function mergeDateAndTime(dateValue: string, timeValue: string, fallbackValue: n
   const safeTime = timeValue || toLocalInputTime(fallback.getTime()) || "00:00";
   const composed = new Date(`${safeDate}T${safeTime}`);
   return Number.isNaN(composed.getTime()) ? fallbackValue : composed.getTime();
+}
+
+type QuickRangePreset = "day" | "week" | "month" | "current_month" | "previous_month";
+
+function getQuickRange(preset: QuickRangePreset): { fromUtcMs: number; toUtcMs: number } {
+  const now = new Date();
+  const end = new Date(now);
+  const start = new Date(now);
+
+  if (preset === "day") {
+    start.setHours(0, 0, 0, 0);
+    return { fromUtcMs: start.getTime(), toUtcMs: end.getTime() };
+  }
+
+  if (preset === "week") {
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    return { fromUtcMs: start.getTime(), toUtcMs: end.getTime() };
+  }
+
+  if (preset === "month") {
+    start.setDate(start.getDate() - 29);
+    start.setHours(0, 0, 0, 0);
+    return { fromUtcMs: start.getTime(), toUtcMs: end.getTime() };
+  }
+
+  if (preset === "current_month") {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    return { fromUtcMs: start.getTime(), toUtcMs: end.getTime() };
+  }
+
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+  const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 0, 0);
+  return { fromUtcMs: previousMonthStart.getTime(), toUtcMs: previousMonthEnd.getTime() };
 }
 
 function buildMetricExplanation(
@@ -272,13 +308,34 @@ export function AnalysisPage(): JSX.Element {
   const toTime = toLocalInputTime(filters.toUtcMs);
   const lowestConsumptionItem =
     result?.lowestConsumptionPeriods.find((item) => item.periodType === lowestConsumptionPeriodType) ?? null;
+  const activeQuickRange = useMemo(() => {
+    const presets: QuickRangePreset[] = ["day", "week", "month", "current_month", "previous_month"];
+    return (
+      presets.find((preset) => {
+        const range = getQuickRange(preset);
+        return filters.fromUtcMs === range.fromUtcMs && filters.toUtcMs === range.toUtcMs;
+      }) ?? null
+    );
+  }, [filters.fromUtcMs, filters.toUtcMs]);
+
+  const applyQuickRange = useCallback(
+    async (preset: QuickRangePreset): Promise<void> => {
+      const range = getQuickRange(preset);
+      await setFilters(range);
+    },
+    [setFilters],
+  );
 
   return (
     <section className="page-grid analysis-layout">
       <article className="panel panel-primary panel-span-2">
         <div className="panel-header-row">
-          <h2 className="panel-title">{bgText.analysis.title}</h2>
-          <div className="action-row">
+          <div className="analysis-hero">
+            <span className="panel-eyebrow">{bgText.navigation.analysis}</span>
+            <h2 className="panel-title panel-title-hero">{bgText.analysis.title}</h2>
+            <p className="panel-text panel-text-hero">{bgText.analysis.text}</p>
+          </div>
+          <div className="action-row action-row-analysis">
             <button type="button" className="btn" disabled={isExporting} onClick={() => void exportResults("csv")}>
               {bgText.analysis.exportCsv}
             </button>
@@ -295,88 +352,114 @@ export function AnalysisPage(): JSX.Element {
             </button>
           </div>
         </div>
-        <p className="panel-text">{bgText.analysis.text}</p>
-        <div className="form-grid form-grid-compact form-grid-analysis">
-          <label className="field">
-            <span className="field-label">{bgText.analysis.activeDatasetLabel}</span>
-            <div className="field-static">{activeDataset?.sourceFileName ?? bgText.common.noActiveDataset}</div>
-          </label>
-          <label className="field">
-            <span className="field-label">{bgText.analysis.intervalLabel}</span>
-            <select
-              className="field-input"
-              value={filters.interval}
-              onChange={(event) => void setFilters({ interval: event.target.value as typeof filters.interval })}
-            >
-              <option value="hourly">{bgText.topBar.intervalHourly}</option>
-              <option value="daily">{bgText.topBar.intervalDaily}</option>
-              <option value="monthly">{bgText.topBar.intervalMonthly}</option>
-            </select>
-          </label>
-          <label className="field">
-            <span className="field-label">{bgText.analysis.fromLabel}</span>
-            <div className="datetime-split">
-              <div className="field">
-                <span className="field-label field-label-inline">{bgText.analysis.dateLabel}</span>
-                <input
-                  className="field-input"
-                  type="date"
-                  value={fromDate}
-                  onChange={(event) =>
-                    void setFilters({
-                      fromUtcMs: mergeDateAndTime(event.target.value, fromTime, filters.fromUtcMs),
-                    })
-                  }
-                />
+        <div className="analysis-toolbar">
+          <div className="analysis-toolbar-main">
+            <label className="field field-featured">
+              <span className="field-label">{bgText.analysis.activeDatasetLabel}</span>
+              <div className="field-static field-static-emphasis">
+                {activeDataset?.sourceFileName ?? bgText.common.noActiveDataset}
               </div>
-              <div className="field">
-                <span className="field-label field-label-inline">{bgText.analysis.timeLabel}</span>
-                <input
-                  className="field-input"
-                  type="time"
-                  step={300}
-                  value={fromTime}
-                  onChange={(event) =>
-                    void setFilters({
-                      fromUtcMs: mergeDateAndTime(fromDate, event.target.value, filters.fromUtcMs),
-                    })
-                  }
-                />
+            </label>
+            <label className="field field-featured field-featured-compact">
+              <span className="field-label">{bgText.analysis.intervalLabel}</span>
+              <select
+                className="field-input field-input-strong"
+                value={filters.interval}
+                onChange={(event) => void setFilters({ interval: event.target.value as typeof filters.interval })}
+              >
+                <option value="hourly">{bgText.topBar.intervalHourly}</option>
+                <option value="daily">{bgText.topBar.intervalDaily}</option>
+                <option value="monthly">{bgText.topBar.intervalMonthly}</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="analysis-presets">
+            <span className="field-label">{bgText.analysis.quickRangesLabel}</span>
+            <div className="chip-row">
+              <button
+                type="button"
+                className={`btn btn-chip${activeQuickRange === "day" ? " btn-chip-active" : ""}`}
+                onClick={() => void applyQuickRange("day")}
+              >
+                {bgText.analysis.quickRangeDay}
+              </button>
+              <button
+                type="button"
+                className={`btn btn-chip${activeQuickRange === "week" ? " btn-chip-active" : ""}`}
+                onClick={() => void applyQuickRange("week")}
+              >
+                {bgText.analysis.quickRangeWeek}
+              </button>
+              <button
+                type="button"
+                className={`btn btn-chip${activeQuickRange === "month" ? " btn-chip-active" : ""}`}
+                onClick={() => void applyQuickRange("month")}
+              >
+                {bgText.analysis.quickRangeMonth}
+              </button>
+              <button
+                type="button"
+                className={`btn btn-chip${activeQuickRange === "current_month" ? " btn-chip-active" : ""}`}
+                onClick={() => void applyQuickRange("current_month")}
+              >
+                {bgText.analysis.quickRangeCurrentMonth}
+              </button>
+              <button
+                type="button"
+                className={`btn btn-chip${activeQuickRange === "previous_month" ? " btn-chip-active" : ""}`}
+                onClick={() => void applyQuickRange("previous_month")}
+              >
+                {bgText.analysis.quickRangePreviousMonth}
+              </button>
+            </div>
+          </div>
+
+          <div className="form-grid form-grid-compact form-grid-analysis">
+            <div className="field field-date-card field-date-range-card">
+              <span className="field-label">{bgText.analysis.summaryRange}</span>
+              <DateRangePicker
+                fromValue={fromDate}
+                toValue={toDate}
+                onChange={({ fromValue, toValue }) =>
+                  void setFilters({
+                    fromUtcMs: mergeDateAndTime(fromValue, fromTime, filters.fromUtcMs),
+                    toUtcMs: mergeDateAndTime(toValue, toTime, filters.toUtcMs),
+                  })
+                }
+              />
+              <div className="analysis-time-row">
+                <label className="field">
+                  <span className="field-label field-label-inline">{bgText.analysis.fromLabel} {bgText.analysis.timeLabel}</span>
+                  <input
+                    className="field-input field-input-strong"
+                    type="time"
+                    step={300}
+                    value={fromTime}
+                    onChange={(event) =>
+                      void setFilters({
+                        fromUtcMs: mergeDateAndTime(fromDate, event.target.value, filters.fromUtcMs),
+                      })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-label field-label-inline">{bgText.analysis.toLabel} {bgText.analysis.timeLabel}</span>
+                  <input
+                    className="field-input field-input-strong"
+                    type="time"
+                    step={300}
+                    value={toTime}
+                    onChange={(event) =>
+                      void setFilters({
+                        toUtcMs: mergeDateAndTime(toDate, event.target.value, filters.toUtcMs),
+                      })
+                    }
+                  />
+                </label>
               </div>
             </div>
-          </label>
-          <label className="field">
-            <span className="field-label">{bgText.analysis.toLabel}</span>
-            <div className="datetime-split">
-              <div className="field">
-                <span className="field-label field-label-inline">{bgText.analysis.dateLabel}</span>
-                <input
-                  className="field-input"
-                  type="date"
-                  value={toDate}
-                  onChange={(event) =>
-                    void setFilters({
-                      toUtcMs: mergeDateAndTime(event.target.value, toTime, filters.toUtcMs),
-                    })
-                  }
-                />
-              </div>
-              <div className="field">
-                <span className="field-label field-label-inline">{bgText.analysis.timeLabel}</span>
-                <input
-                  className="field-input"
-                  type="time"
-                  step={300}
-                  value={toTime}
-                  onChange={(event) =>
-                    void setFilters({
-                      toUtcMs: mergeDateAndTime(toDate, event.target.value, filters.toUtcMs),
-                    })
-                  }
-                />
-              </div>
-            </div>
-          </label>
+          </div>
         </div>
       </article>
 
