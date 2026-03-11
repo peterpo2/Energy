@@ -1,0 +1,16 @@
+{
+  "name": "energy-desktop-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.2.0",
+  "scripts": {
+    "dev": "pnpm --filter @energy/desktop dev",
+    "build": "pnpm --filter @energy/desktop build",
+    "dist": "pnpm --filter @energy/desktop dist",
+    "dist:unsigned": "pnpm --filter @energy/desktop dist:unsigned",
+    "dist:signed": "pnpm --filter @energy/desktop dist:signed",
+    "smoke:packaged": "pnpm --filter @energy/desktop smoke:packaged",
+    "typecheck": "pnpm --filter @energy/desktop typecheck",
+    "clean": "pnpm --filter @energy/desktop clean"
+  }
+}
