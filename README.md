@@ -52,7 +52,8 @@ energy-desktop/
 
 ### 7. Инсталация
 ```bash
-cd c:\Popoff\Energy
+git clone https://github.com/peterpo2/Energy.git
+cd Energy
 pnpm install
 ```
 
@@ -163,7 +164,8 @@ energy-desktop/
 
 ### 7. Installation
 ```bash
-cd c:\Popoff\Energy
+git clone https://github.com/peterpo2/Energy.git
+cd Energy
 pnpm install
 ```
 
@@ -219,4 +221,3 @@ Schema management is migration-based. It stores:
 - Connect IPC handlers to real business logic
 - Implement result export (`xlsx`/`csv`)
 - Add Windows installer/packaging
-
